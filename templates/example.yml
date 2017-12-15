@@ -1,0 +1,25 @@
+---
+
+name: Acmy Oy
+
+from: |
+    Tomas Karasek Toiminimi
+    Lansikatu 88
+    80110 Joensuu
+    Finland
+    tom.to.the.f@gmail.com
+    ID: 8888888-8
+
+payment:
+  account: FI8888888888888888
+
+pricingAgreement: |
+  88 EUR per hour of work
+
+for: |
+  Acme Oy
+  SomeStreet 88
+  48399 Praha
+  Czech Republic
+  person@acme.io
+  ID: CZ88888888
