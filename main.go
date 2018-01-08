@@ -148,8 +148,7 @@ func invPrint(c *cli.Context) error {
 	i.InvoiceDate = date
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
-	idate := stripchars(date, "-")
-	base := idate + strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
+	base := strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
 	i.Payment.ReferenceNumber = genref(base)
 	i.InvoiceID = i.Payment.ReferenceNumber
 	i.Payment.Due = due
