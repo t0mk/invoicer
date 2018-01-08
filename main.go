@@ -15,8 +15,38 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var strToNum = map[string]string{
+	"A": "10",
+	"B": "11",
+	"C": "12",
+	"D": "13",
+	"E": "14",
+	"F": "15",
+	"G": "16",
+	"H": "17",
+	"I": "18",
+	"J": "19",
+	"K": "20",
+	"L": "21",
+	"M": "22",
+	"N": "23",
+	"O": "24",
+	"P": "25",
+	"Q": "26",
+	"R": "27",
+	"S": "28",
+	"T": "29",
+	"U": "30",
+	"V": "31",
+	"W": "32",
+	"X": "33",
+	"Y": "34",
+	"Z": "35",
+}
+
 type PaymentInfo struct {
 	Account         string
+	Swift           string
 	ReferenceNumber string
 	Due             string
 	Amount          string
@@ -62,7 +92,56 @@ func random(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
+func replace(s string) string {
+	r := s
+	for k, v := range strToNum {
+		r = strings.Replace(r, k, v, -1)
+	}
+	return r
+}
+
+func getUInt(s string) uint64 {
+	ui, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return ui
+}
+
+func getChecksum(s string) string {
+	pre := s + "RF00"
+	pre = replace(pre)
+	cs := 98 - (getUInt(pre) % 97)
+	return fmt.Sprintf("%02d", cs)
+
+}
+
+func genRef(r string) string {
+	// international reference due to ISO 11649 creditor reference
+	ur := strings.ToUpper(r)
+	nr := replace(ur)
+	cs := getChecksum(nr)
+	ref := "RF" + cs + ur
+	validateRef(ref)
+	return ref
+}
+
+func validateRef(r string) {
+	rr := strings.ToUpper(r)
+	wr := rr[4:len(rr)] + rr[0:4]
+	nr := replace(wr)
+	if len(rr) >= 26 {
+		panic("bad length")
+	}
+	mod := getUInt(nr) % 97
+	if mod != 1 {
+		panic("bad mod")
+	}
+
+}
+
 func genref(base string) string {
+	// finnish domestic refnum
 	if len(base) == 0 {
 		panic("you must give some base")
 	}
@@ -149,7 +228,7 @@ func invPrint(c *cli.Context) error {
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
 	base := strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
-	i.Payment.ReferenceNumber = genref(base)
+	i.Payment.ReferenceNumber = genRef(genref(base))
 	i.InvoiceID = i.Payment.ReferenceNumber
 	i.Payment.Due = due
 	i.BilledWork = bw
@@ -216,6 +295,7 @@ func printMarkDown(i Invoice) {
 	fmt.Println("| Ref. number |", i.Payment.ReferenceNumber, "|")
 	fmt.Println("| Due date |", i.Payment.Due, "|")
 	fmt.Println("| IBAN |", i.Payment.Account, "|")
+	fmt.Println("| SWIFT |", i.Payment.Swift, "|")
 	fmt.Println("")
 	if strings.HasPrefix(i.Payment.Account, "FI") {
 		fmt.Println("In Finland, you can also copypaste following \"barcode\" to your Internet banking payment form:")

@@ -12,6 +12,7 @@ from: |
 
 payment:
   account: FI8888888888888888
+  swift: NDEAFIHH
 
 pricingAgreement: |
   88 EUR per hour of work
