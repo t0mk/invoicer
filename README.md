@@ -10,6 +10,14 @@ I was thinking to generate pdf straight from go, it's poss (https://github.com/j
 then I thought that if I keep it in MarkDown, I can browse the invoices in HTTP interfaces to git repos -
 github, bitbucket, gogs all render MarkDown real nicely.
 
+## Build 
+
+Install Golang, adn then in the root of this repo:
+
+```
+$ go build
+```
+
 
 ## Usage
 
@@ -33,9 +41,9 @@ just pass generated md file to pandoc.
 pandoc ex_0118.md -o ex_0118.pdf --columns 150 -V geometry:margin=1in
 ```
 
-## Rererence number 
+## Reference number 
 
-Refence numbers are generated accoiding to ISO 11649 creditor reference.
+Reference numbers are generated according to ISO 11649 creditor reference.
 
 However, you can pass `--ref` arg which will populate the ref by given string.
 
