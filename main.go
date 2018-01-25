@@ -202,6 +202,7 @@ func invPrint(c *cli.Context) error {
 	amount := c.Float64("amount")
 	vatproc := c.Int64("vatproc")
 	period := c.String("period")
+	ref := c.String("ref")
 	descpri := c.StringSlice("descpri")
 	bw := `
 | **description**  | **price** |
@@ -227,8 +228,12 @@ func invPrint(c *cli.Context) error {
 	i.InvoiceDate = date
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
-	base := strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
-	i.Payment.ReferenceNumber = genRef(genref(base))
+	if len(ref) == 0 {
+		base := strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
+		ref = genRef(genref(base))
+	}
+
+	i.Payment.ReferenceNumber = ref
 	i.InvoiceID = i.Payment.ReferenceNumber
 	i.Payment.Due = due
 	i.BilledWork = bw
@@ -292,7 +297,7 @@ func printMarkDown(i Invoice) {
 	fmt.Println("|   |   |")
 	fmt.Println("|---|---|")
 	fmt.Println("| Amount to pay |", i.Payment.Total, i.Payment.Currency, " |")
-	fmt.Println("| Ref. number |", i.Payment.ReferenceNumber, "|")
+	fmt.Println("| Reference |", i.Payment.ReferenceNumber, "|")
 	fmt.Println("| Due date |", i.Payment.Due, "|")
 	fmt.Println("| IBAN |", i.Payment.Account, "|")
 	fmt.Println("| SWIFT |", i.Payment.Swift, "|")
@@ -318,6 +323,8 @@ func main() {
 			&cli.StringFlag{Name: "period"},
 			&cli.StringSliceFlag{Name: "descpri"},
 			&cli.StringFlag{Name: "currency", Value: "EUR"},
+			&cli.StringFlag{Name: "ref"},
+
 			&cli.StringFlag{Name: "due", Value: now.Add(336 * time.Hour).String()[:10]},
 			&cli.StringFlag{Name: "date", Value: now.String()[:10]},
 		},

@@ -33,6 +33,12 @@ just pass generated md file to pandoc.
 pandoc ex_0118.md -o ex_0118.pdf --columns 150 -V geometry:margin=1in
 ```
 
+## Rererence number 
+
+Refence numbers are generated accoiding to ISO 11649 creditor reference.
+
+However, you can pass `--ref` arg which will populate the ref by given string.
+
 ## Examples
 
 In this repo:
