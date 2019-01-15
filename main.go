@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jung-kurt/gofpdf"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
@@ -66,7 +67,8 @@ type Invoice struct {
 	InvoiceDate      string
 	Payment          PaymentInfo
 	PricingAgreement string `yaml:"pricingAgreement"`
-	BilledWork       string `yaml:"billedWork"`
+	DescPri          []string
+	Worklog          string
 }
 
 func readfile(p string) []byte {
@@ -196,22 +198,6 @@ func barcode(iban, eur, refnum, ddate string) string {
 
 func invPrint(c *cli.Context) error {
 	templ := c.String("templ")
-	cur := c.String("currency")
-	date := c.String("date")
-	due := c.String("due")
-	amount := c.Float64("amount")
-	vatproc := c.Int64("vatproc")
-	period := c.String("period")
-	ref := c.String("ref")
-	descpri := c.StringSlice("descpri")
-	bw := `
-| **description**  | **price** |
-|------------------|-----------|
-`
-	for _, dp := range descpri {
-		bw += fmt.Sprintf("| %s |\n", dp)
-	}
-
 	yamlFile := readfile(templ)
 
 	var i Invoice
@@ -221,6 +207,17 @@ func invPrint(c *cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
+	i.Worklog = c.String("worklog")
+	cur := c.String("currency")
+	date := c.String("date")
+	due := c.String("due")
+	amount := c.Float64("amount")
+	vatproc := c.Int64("vatproc")
+	period := c.String("period")
+	ref := c.String("ref")
+	descpri := c.StringSlice("descpri")
+
+	i.DescPri = descpri
 
 	vat := amount * (float64(vatproc) / 100)
 	total := amount + vat
@@ -236,7 +233,6 @@ func invPrint(c *cli.Context) error {
 	i.Payment.ReferenceNumber = ref
 	i.InvoiceID = i.Payment.ReferenceNumber
 	i.Payment.Due = due
-	i.BilledWork = bw
 	totalPrintable := strconv.FormatFloat(total, 'f', 2, 64)
 
 	i.Payment.Total = totalPrintable
@@ -246,68 +242,14 @@ func invPrint(c *cli.Context) error {
 	i.Payment.Barcode = barcode(i.Payment.Account, totalPrintable,
 		i.Payment.ReferenceNumber, i.Payment.Due)
 
-	i.Tldr = fmt.Sprintf("For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
+	i.Tldr = fmt.Sprintf("For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
 
-	printMarkDown(i)
-	return nil
-}
-
-func printMarkDown(i Invoice) {
-	fmt.Println("# Invoice", i.InvoiceID)
-	fmt.Println()
-	fmt.Println("## From")
-	fmt.Println()
-	fmt.Println("```")
-	fmt.Println(i.From)
-	fmt.Println("```")
-	fmt.Println("## For")
-	fmt.Println()
-	fmt.Println("```")
-	fmt.Println(i.For)
-	fmt.Println("```")
-	fmt.Println("## Summary")
-	fmt.Println()
-	fmt.Println("|   |   |")
-	fmt.Println("|---|---|")
-	fmt.Println("| Invoice date |", i.InvoiceDate, "|")
-	fmt.Println("| Invoice ID |", i.InvoiceID, "|")
-	fmt.Println("")
-	fmt.Println(i.Tldr)
-	fmt.Println("")
-	fmt.Println("## Pricing agreement")
-	fmt.Println("")
-	fmt.Println(i.PricingAgreement)
-	fmt.Println("")
-	fmt.Println("## Billed work")
-	fmt.Println("")
-	fmt.Println(i.BilledWork)
-	fmt.Println("")
-	fmt.Println("\\pagebreak")
-	fmt.Println("")
-	fmt.Println("### Detailed amounts")
-	fmt.Println("")
-	fmt.Println("|   |   |")
-	fmt.Println("|---|---|")
-	fmt.Println("| Amount without VAT |", i.Payment.Amount, i.Payment.Currency, "|")
-	fmt.Println("| VAT", i.Payment.VatProc, "% |", i.Payment.Vat, i.Payment.Currency, "|")
-	fmt.Println("| Total Amount |", i.Payment.Total, i.Payment.Currency, " |")
-	fmt.Println("")
-	fmt.Println("## Payment information")
-	fmt.Println("")
-	fmt.Println("|   |   |")
-	fmt.Println("|---|---|")
-	fmt.Println("| Amount to pay |", i.Payment.Total, i.Payment.Currency, " |")
-	fmt.Println("| Reference |", i.Payment.ReferenceNumber, "|")
-	fmt.Println("| Due date |", i.Payment.Due, "|")
-	fmt.Println("| IBAN |", i.Payment.Account, "|")
-	fmt.Println("| SWIFT |", i.Payment.Swift, "|")
-	fmt.Println("")
-	if strings.HasPrefix(i.Payment.Account, "FI") {
-		fmt.Println("In Finland, you can also copypaste following \"barcode\" to your Internet banking payment form:")
-		fmt.Println("")
-		fmt.Println(i.Payment.Barcode)
+	pdf, err := getPdf(&i)
+	if err != nil {
+		panic(err)
 	}
-
+	pdf.OutputFileAndClose("hello.pdf")
+	return nil
 }
 
 func main() {
@@ -315,12 +257,13 @@ func main() {
 	app := &cli.App{
 		Action: invPrint,
 		Name:   "inv",
-		Usage:  "generates invoice in MarkDown",
+		Usage:  "generates PDF invoice",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "templ"},
 			&cli.Float64Flag{Name: "amount"},
 			&cli.Int64Flag{Name: "vatproc", Value: 0},
 			&cli.StringFlag{Name: "period"},
+			&cli.StringFlag{Name: "worklog"},
 			&cli.StringSliceFlag{Name: "descpri"},
 			&cli.StringFlag{Name: "currency", Value: "EUR"},
 			&cli.StringFlag{Name: "ref"},
@@ -330,4 +273,152 @@ func main() {
 		},
 	}
 	app.Run(os.Args)
+}
+
+func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+
+	pdf.SetXY(20, 10)
+	pdf.SetFont("Helvetica", "B", 16)
+	pdf.Cell(10, 30, "Invoice "+c.InvoiceID)
+
+	pdf.SetXY(20, 20)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Invoice From")
+
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetXY(20, 40)
+	pdf.MultiCell(100, 5, c.From, "", "", false)
+
+	pdf.SetXY(120, 20)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Invoice For")
+
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetXY(120, 40)
+	pdf.MultiCell(100, 5, c.For, "", "", false)
+
+	pdf.SetXY(20, 65)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Summary")
+
+	pdf.SetFont("Helvetica", "I", 10)
+	pdf.SetXY(20, 85)
+	pdf.Cell(100, 5, "Invoice Date:")
+
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetXY(55, 85)
+	pdf.Cell(100, 5, c.InvoiceDate)
+
+	pdf.SetFont("Helvetica", "I", 10)
+	pdf.SetXY(20, 90)
+	pdf.Cell(100, 5, "Invoice ID:")
+
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetXY(55, 90)
+	pdf.Cell(100, 5, c.InvoiceID)
+
+	pdf.SetFont("Helvetica", "I", 10)
+	pdf.SetXY(20, 95)
+	pdf.Cell(100, 5, "Pricing Agreement:")
+
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetXY(55, 95)
+	pdf.Cell(100, 5, c.PricingAgreement)
+
+	pdf.SetXY(20, 102)
+	pdf.MultiCell(150, 5, c.Tldr, "", "", false)
+
+	pdf.SetXY(20, 107)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Billed Work")
+
+	pdf.SetFont("Helvetica", "B", 10)
+
+	pdf.SetXY(20, 115.5)
+	pdf.Cell(10, 30, "Description")
+
+	pdf.SetXY(105, 115.5)
+	pdf.Cell(10, 30, "Price")
+
+	pdf.SetFont("Helvetica", "", 10)
+	y := 135.0
+
+	pdf.Line(21, 127, 122, 127)
+	pdf.Line(21, 134, 122, 134)
+	for _, i := range c.DescPri {
+		j := strings.Split(i, " | ")
+		pdf.SetXY(20, y)
+		pdf.Cell(100, 5, j[0])
+		pdf.SetXY(105, y)
+		pdf.Cell(100, 5, j[1])
+		y += 5
+	}
+	pdf.Line(21, y+1, 122, y+1)
+
+	pdf.SetXY(20, y+3)
+
+	pdf.Cell(27, 5, "Log of my work:")
+	pdf.WriteLinkString(5, c.Worklog, c.Worklog)
+
+	pdf.SetXY(20, y+5)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Payment information")
+
+	pdf.SetFont("Helvetica", "I", 10)
+
+	pdf.Line(21, y+24, 97, y+24)
+	pdf.Line(121, y+24, 182, y+24)
+
+	pdf.Line(21, y+51, 97, y+51)
+	pdf.Line(121, y+41, 182, y+41)
+
+	pdf.SetXY(20, y+13)
+	pdf.Cell(10, 30, "Amount to pay:")
+	pdf.SetXY(20, y+18)
+	pdf.Cell(10, 30, "Reference:")
+	pdf.SetXY(20, y+23)
+	pdf.Cell(10, 30, "Due Date:")
+	pdf.SetXY(20, y+28)
+	pdf.Cell(10, 30, "IBAN:")
+	pdf.SetXY(20, y+33)
+	pdf.Cell(10, 30, "SWIFT:")
+
+	pdf.SetFont("Helvetica", "B", 10)
+	pdf.SetXY(50, y+13)
+	pdf.Cell(10, 30, c.Payment.Total+" "+c.Payment.Currency)
+	pdf.SetXY(50, y+18)
+	pdf.Cell(10, 30, c.Payment.ReferenceNumber)
+	pdf.SetXY(50, y+23)
+	pdf.Cell(10, 30, c.Payment.Due)
+	pdf.SetXY(50, y+28)
+	pdf.Cell(10, 30, c.Payment.Account)
+	pdf.SetXY(50, y+33)
+	pdf.Cell(10, 30, c.Payment.Swift)
+
+	pdf.SetXY(120, y+5)
+	pdf.SetFont("Helvetica", "BI", 13)
+	pdf.Cell(10, 30, "Detailed Amounts")
+
+	pdf.SetFont("Helvetica", "I", 10)
+
+	pdf.SetXY(120, y+13)
+	pdf.Cell(10, 30, "Without VAT:")
+	pdf.SetXY(120, y+18)
+	pdf.Cell(10, 30, "VAT "+fmt.Sprintf("%d", c.Payment.VatProc)+" %:")
+	pdf.SetXY(120, y+23)
+	pdf.Cell(10, 30, "Total:")
+
+	pdf.SetFont("Helvetica", "B", 10)
+	pdf.SetXY(160, y+13)
+	pdf.Cell(10, 30, c.Payment.Amount+" "+c.Payment.Currency)
+	pdf.SetXY(160, y+18)
+	pdf.Cell(10, 30, c.Payment.Vat+" "+c.Payment.Currency)
+	pdf.SetXY(160, y+23)
+	pdf.Cell(10, 30, c.Payment.Total+" "+c.Payment.Currency)
+
+	pdf.AliasNbPages("{nb}") // replace {nb}
+
+	return pdf, nil
 }
