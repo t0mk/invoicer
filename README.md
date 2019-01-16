@@ -26,7 +26,7 @@ $ go build
            --outfile "example.pdf"
 ```
 
-It will generate pdf to example.pdf.
+It will generate pdf to [example.pdf](example.pdf).
 
 
 ## Reference number 
@@ -39,8 +39,4 @@ However, you can pass `--ref` arg which will populate the ref by given string.
 
 It generates the barcode for Finnish bank apps and whatnot. I did this some time ago, there is some sort of standard to it, I don't know where.
 
-## Examples
 
-In this repo:
-
-* [example.pdf](example.pdf)
