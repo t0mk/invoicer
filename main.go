@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"hash/crc32"
+	"image/gif"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/code128"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -185,7 +188,7 @@ func getDestID(c string) uint32 {
 	return clientID
 }
 
-func barcode(iban, eur, refnum, ddate string) string {
+func barcod(iban, eur, refnum, ddate string) string {
 	// This is something in Finland... I don't even remember where I
 	// learned this from
 	codeIBAN := "4" + iban[2:]
@@ -193,6 +196,25 @@ func barcode(iban, eur, refnum, ddate string) string {
 	codeRefNum := fmt.Sprintf("%023s", refnum)
 	codeDate := stripchars(ddate, "-")[2:]
 	return codeIBAN + codeEUR + codeRefNum + codeDate
+
+}
+
+func codeToFile(c, fn string) error {
+	e, err := code128.Encode(c)
+	if err != nil {
+		return err
+	}
+
+	cd, err := barcode.Scale(e, 800, 200)
+	if err != nil {
+		return err
+	}
+
+	file, _ := os.Create(fn)
+	defer file.Close()
+
+	gif.Encode(file, cd, &gif.Options{NumColors: 256})
+	return nil
 
 }
 
@@ -216,6 +238,10 @@ func invPrint(c *cli.Context) error {
 	period := c.String("period")
 	ref := c.String("ref")
 	descpri := c.StringSlice("descpri")
+	outfile := c.String("outfile")
+	if !strings.HasSuffix(outfile, ".pdf") {
+		panic(fmt.Errorf("outfile should end with .pdf"))
+	}
 
 	i.DescPri = descpri
 
@@ -239,7 +265,7 @@ func invPrint(c *cli.Context) error {
 	i.Payment.Amount = strconv.FormatFloat(amount, 'f', 2, 64)
 	i.Payment.Vat = strconv.FormatFloat(vat, 'f', 2, 64)
 	i.Payment.VatProc = vatproc
-	i.Payment.Barcode = barcode(i.Payment.Account, totalPrintable,
+	i.Payment.Barcode = barcod(i.Payment.Account, totalPrintable,
 		i.Payment.ReferenceNumber, i.Payment.Due)
 
 	i.Tldr = fmt.Sprintf("For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
@@ -248,7 +274,11 @@ func invPrint(c *cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
-	pdf.OutputFileAndClose("hello.pdf")
+	err = pdf.OutputFileAndClose(outfile)
+	if err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 
@@ -264,6 +294,7 @@ func main() {
 			&cli.Int64Flag{Name: "vatproc", Value: 0},
 			&cli.StringFlag{Name: "period"},
 			&cli.StringFlag{Name: "worklog"},
+			&cli.StringFlag{Name: "outfile"},
 			&cli.StringSliceFlag{Name: "descpri"},
 			&cli.StringFlag{Name: "currency", Value: "EUR"},
 			&cli.StringFlag{Name: "ref"},
@@ -419,6 +450,19 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.Cell(10, 30, c.Payment.Total+" "+c.Payment.Currency)
 
 	pdf.AliasNbPages("{nb}") // replace {nb}
+
+	if strings.HasPrefix(c.Payment.Account, "FI") {
+		pdf.SetXY(20, y+43)
+		pdf.SetFont("Helvetica", "", 10)
+		pdf.Cell(10, 30, "If you are in Finland, you can copypaste or scan following code:")
+		pdf.SetXY(20, y+48)
+		pdf.Cell(10, 30, c.Payment.Barcode)
+		codeToFile(c.Payment.Barcode, "c.gif")
+		var opt gofpdf.ImageOptions
+
+		opt.ImageType = "gif"
+		pdf.ImageOptions("c.gif", 20, y+68, 160, 20, false, opt, 0, "")
+	}
 
 	return pdf, nil
 }
