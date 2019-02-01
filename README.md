@@ -26,7 +26,12 @@ $ go build
            --outfile "example.pdf"
 ```
 
-It will generate pdf to [example.pdf](example.pdf).
+... will generate sth like
+
+![example](example.png)
+
+
+See the actual [example.pdf](example.pdf).
 
 
 ## Reference number 
