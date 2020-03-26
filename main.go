@@ -51,6 +51,7 @@ var strToNum = map[string]string{
 type PaymentInfo struct {
 	Account         string
 	Swift           string
+	Bankaddress     string
 	ReferenceNumber string
 	Due             string
 	Amount          string
@@ -402,7 +403,7 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.Line(21, y+24, 97, y+24)
 	pdf.Line(121, y+24, 182, y+24)
 
-	pdf.Line(21, y+51, 97, y+51)
+	pdf.Line(21, y+56, 120, y+56)
 	pdf.Line(121, y+41, 182, y+41)
 
 	pdf.SetXY(20, y+13)
@@ -415,6 +416,8 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.Cell(10, 30, "IBAN:")
 	pdf.SetXY(20, y+33)
 	pdf.Cell(10, 30, "SWIFT:")
+	pdf.SetXY(20, y+38)
+	pdf.Cell(10, 30, "Bank Address:")
 
 	pdf.SetFont("Helvetica", "B", 10)
 	pdf.SetXY(50, y+13)
@@ -427,6 +430,8 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.Cell(10, 30, c.Payment.Account)
 	pdf.SetXY(50, y+33)
 	pdf.Cell(10, 30, c.Payment.Swift)
+	pdf.SetXY(50, y+38)
+	pdf.Cell(10, 30, c.Payment.Bankaddress)
 
 	pdf.SetXY(120, y+5)
 	pdf.SetFont("Helvetica", "BI", 13)
