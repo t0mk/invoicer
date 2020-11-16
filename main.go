@@ -73,6 +73,7 @@ type Invoice struct {
 	PricingAgreement string `yaml:"pricingAgreement"`
 	DescPri          []string
 	Worklog          string
+	PO               string
 }
 
 func readfile(p string) []byte {
@@ -250,6 +251,7 @@ func invPrint(c *cli.Context) error {
 	total := amount + vat
 
 	i.InvoiceDate = date
+	i.PO = "3280075065"
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
 	if len(ref) == 0 {
@@ -269,7 +271,7 @@ func invPrint(c *cli.Context) error {
 	i.Payment.Barcode = barcod(i.Payment.Account, totalPrintable,
 		i.Payment.ReferenceNumber, i.Payment.Due)
 
-	i.Tldr = fmt.Sprintf("For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
+	i.Tldr = fmt.Sprintf("I am a contractor working on Equinix Metal Terraform provider and Golang SDK. For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
 
 	pdf, err := getPdf(&i)
 	if err != nil {
@@ -351,34 +353,42 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.SetXY(55, 90)
 	pdf.Cell(100, 5, c.InvoiceID)
 
-	pdf.SetFont("Helvetica", "I", 10)
+	pdf.SetFont("Helvetica", "BI", 10)
 	pdf.SetXY(20, 95)
+	pdf.Cell(100, 5, "Purchase Order:")
+
+	pdf.SetFont("Helvetica", "B", 10)
+	pdf.SetXY(55, 95)
+	pdf.Cell(100, 5, c.PO)
+
+	pdf.SetFont("Helvetica", "I", 10)
+	pdf.SetXY(20, 100)
 	pdf.Cell(100, 5, "Pricing Agreement:")
 
 	pdf.SetFont("Helvetica", "", 10)
-	pdf.SetXY(55, 95)
+	pdf.SetXY(55, 100)
 	pdf.Cell(100, 5, c.PricingAgreement)
 
-	pdf.SetXY(20, 102)
+	pdf.SetXY(20, 107)
 	pdf.MultiCell(150, 5, c.Tldr, "", "", false)
 
-	pdf.SetXY(20, 107)
+	pdf.SetXY(20, 112)
 	pdf.SetFont("Helvetica", "BI", 13)
 	pdf.Cell(10, 30, "Billed Work")
 
 	pdf.SetFont("Helvetica", "B", 10)
 
-	pdf.SetXY(20, 115.5)
+	pdf.SetXY(20, 120.5)
 	pdf.Cell(10, 30, "Description")
 
-	pdf.SetXY(105, 115.5)
+	pdf.SetXY(105, 120.5)
 	pdf.Cell(10, 30, "Price")
 
 	pdf.SetFont("Helvetica", "", 10)
-	y := 135.0
+	y := 145.0
 
-	pdf.Line(21, 127, 122, 127)
-	pdf.Line(21, 134, 122, 134)
+	pdf.Line(21, 132, 122, 132)
+	pdf.Line(21, 139, 122, 139)
 	for _, i := range c.DescPri {
 		j := strings.Split(i, " | ")
 		pdf.SetXY(20, y)
