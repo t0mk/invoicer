@@ -251,7 +251,7 @@ func invPrint(c *cli.Context) error {
 	total := amount + vat
 
 	i.InvoiceDate = date
-	i.PO = "3280075065"
+	i.PO = "3280109229"
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
 	if len(ref) == 0 {
