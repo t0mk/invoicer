@@ -5,6 +5,7 @@ import (
 	"hash/crc32"
 	"image/gif"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -128,7 +129,10 @@ func genRef(r string) string {
 	ur := strings.ToUpper(r)
 	nr := replace(ur)
 	cs := getChecksum(nr)
+	fmt.Println("ur", ur)
+	fmt.Println("cs", cs)
 	ref := "RF" + cs + ur
+	fmt.Println("ref", ref)
 	validateRef(ref)
 	return ref
 }
@@ -251,11 +255,12 @@ func invPrint(c *cli.Context) error {
 	total := amount + vat
 
 	i.InvoiceDate = date
-	i.PO = "3280109229"
+	i.PO = "3280278707"
 	i.Payment.Currency = cur
 	clientID := getDestID(client)
 	if len(ref) == 0 {
 		base := strconv.FormatUint(uint64(clientID), 10) + strconv.Itoa(random(10, 99))
+		fmt.Println("base", base)
 		ref = genRef(genref(base))
 	}
 
@@ -271,7 +276,7 @@ func invPrint(c *cli.Context) error {
 	i.Payment.Barcode = barcod(i.Payment.Account, totalPrintable,
 		i.Payment.ReferenceNumber, i.Payment.Due)
 
-	i.Tldr = fmt.Sprintf("I am a contractor working on Equinix Metal Terraform provider and Golang SDK. For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
+	i.Tldr = fmt.Sprintf("I am a contractor working on Equinix Ansible collection and Python SDK. For my contract work in %s, I invoice you for %s %s payable to %s, ref. nr. %s by %s.", period, i.Payment.Total, i.Payment.Currency, i.Payment.Account, i.Payment.ReferenceNumber, i.Payment.Due)
 
 	pdf, err := getPdf(&i)
 	if err != nil {
@@ -385,15 +390,16 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 	pdf.Cell(10, 30, "Price")
 
 	pdf.SetFont("Helvetica", "", 10)
-	y := 145.0
+	y := 140.0
 
 	pdf.Line(21, 132, 122, 132)
 	pdf.Line(21, 139, 122, 139)
+	log.Println(c.DescPri)
 	for _, i := range c.DescPri {
 		j := strings.Split(i, " | ")
 		pdf.SetXY(20, y)
 		pdf.Cell(100, 5, j[0])
-		pdf.SetXY(105, y)
+		pdf.SetXY(100, y)
 		pdf.Cell(100, 5, j[1])
 		y += 5
 	}
@@ -401,8 +407,8 @@ func getPdf(c *Invoice) (*gofpdf.Fpdf, error) {
 
 	pdf.SetXY(20, y+3)
 
-	pdf.Cell(27, 5, "Log of my work:")
-	pdf.WriteLinkString(5, c.Worklog, c.Worklog)
+	//pdf.Cell(27, 5, "Log of my work:")
+	//pdf.WriteLinkString(5, c.Worklog, c.Worklog)
 
 	pdf.SetXY(20, y+5)
 	pdf.SetFont("Helvetica", "BI", 13)
